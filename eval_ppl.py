@@ -21,7 +21,7 @@ from src.metrics import compute_perplexity, compute_perplexity_layer_per_layer
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Later dropping.")
+    parser = argparse.ArgumentParser()
     # Model params
     parser.add_argument(
         "--model_name_or_path",
@@ -44,7 +44,7 @@ def parse_args():
         default=1,
         help="Batch size on evaluation",
     )
-    parser.add_argument("--eval_samples", default=64, type=int, help="Number of samples for evaluation.")
+    parser.add_argument("--eval_tokens", default=524288, type=int, help="Number of tokens for evaluation.")
     # Loading params
     parser.add_argument("--drop_layer_config", type=str, default=None, help="Path to layer dropping configuration.")
     # Sparsification params
@@ -105,7 +105,7 @@ def parse_args():
         type=str,
         default=None,
         choices=["eager", "sdpa", "flash_attention_2"],
-        help="Attention implementation for both teacher and student models: eager, sdpa, or flash_attention_2",
+        help="Attention implementation: eager, sdpa, or flash_attention_2",
     )
     parser.add_argument("--use_fast_tokenizer", action="store_true", help="Whether to use fast tokenizer.")
     args = parser.parse_args()
@@ -182,7 +182,7 @@ def main():
         eval_datasets.append(
             get_data(
                 eval_dataset_name,
-                args.eval_samples,  # ignored for WikiText2 and C4
+                args.eval_tokens,  # ignored for WikiText2 and C4
                 args.sequence_length,
                 tokenizer,
                 train=False,
