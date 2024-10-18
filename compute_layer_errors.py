@@ -1,19 +1,18 @@
-import os
 import argparse
 import time
+import os
 
 import torch
 import torch.distributed as dist
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
 from src import dist_utils
 from src.data_utils import get_data
-from src.model_utils import get_hidden_size
-from src.pruner import FastOBCPruner
+from src.error_estimator import ErrorEstimator
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="One-shot pruning with parallel OBC.")
+    parser = argparse.ArgumentParser(description="Later dropping.")
     # Model params
     parser.add_argument(
         "--model_name_or_path",
@@ -28,7 +27,7 @@ def parse_args():
         help="The name or path to the tokenizer. By default use model tokenizer.",
     )
     parser.add_argument(
-        "--prunable_modules",
+        "--target_modules",
         type=str,
         required=True,
         help="Regex for modules to prune",
@@ -53,18 +52,15 @@ def parse_args():
         required=True,
         help="The name or dataset or path used for calibration.",
     )
-    parser.add_argument("--calibration_tokens", default=int(2**23), type=int, help="Number of tokens for calibration.")
+    parser.add_argument("--calibration_samples", default=64, type=int, help="Number of samples for calibration.")
     parser.add_argument(
         "--calibration_sequence_length", default=None, type=int, help="Length of calibration sequences."
     )
-    # Sparsification params
-    parser.add_argument("--sparsity", required=True, type=float)
-    parser.add_argument("--weights_diff", default=None, type=int)
-    parser.add_argument("--num_levels", default=8, type=int)
-    parser.add_argument("--rel_damp", type=float, default=1e-2)
-    parser.add_argument("--block_size", type=int, default=128)
-    # Save params
-    parser.add_argument("--save_dir", type=str, required=True, help="where to save sparse model.")
+    # Сompression params
+    parser.add_argument(
+        "--compressed_weights_path", type=str, required=True, help="Path to sparse or quantized weights"
+    )
+    parser.add_argument("--group_by_numel", action="store_true", help="whether to group l2 error by number of elements")
     # Misc params
     parser.add_argument(
         "--dtype",
@@ -73,7 +69,7 @@ def parse_args():
         choices=["auto", "float16", "float32", "bfloat16"],
         help="dtype to load the model.",
     )
-    parser.add_argument("--seed", default=0, type=int, help="random seed.")
+    parser.add_argument("--seed", default=0, type=int, help="Random seed.")
     parser.add_argument(
         "--low_cpu_mem_usage", action="store_true", help="whether to load model with the use of `low_cpu_mem_usage`"
     )
@@ -82,7 +78,12 @@ def parse_args():
         type=str,
         default=None,
         choices=["eager", "sdpa", "flash_attention_2"],
-        help="Attention implementation: eager, sdpa, or flash_attention_2",
+        help="Attention implementation for both teacher and student models: eager, sdpa, or flash_attention_2",
+    )
+    parser.add_argument("--use_fast_tokenizer", action="store_true", help="Whether to use fast tokenizer.")
+    # Save params
+    parser.add_argument(
+        "--configuration_name", type=str, default="final_configuration.txt", help="Name of final configuration"
     )
     parser.add_argument("--cpu_offload_modules", action="store_true", help="whether to offload modules to CPU.")
     parser.add_argument("--cpu_offload_activations", action="store_true", help="whether to offload activations to CPU.")
@@ -115,11 +116,9 @@ def main():
     # Tokenizer
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name or args.model_name_or_path, use_fast=False)
     # Load calibration data
-    args.calibration_sequence_length = args.calibration_sequence_length or min(
-        model.config.max_position_embeddings, 8192
-    )
+    args.calibration_sequence_length = args.calibration_sequence_length or model.config.max_position_embeddings
     calibration_data = get_data(
-        args.calibration_data, args.calibration_tokens, args.calibration_sequence_length, tokenizer, train=True
+        args.calibration_data, args.calibration_samples, args.calibration_sequence_length, tokenizer, train=True
     )
     # take slice (if running on multiple workers)
     if dist_utils.is_dist_available_and_initialized():
@@ -128,36 +127,26 @@ def main():
     calibration_data = [([], {"input_ids": input_ids}) for input_ids in calibration_data]
     dist.barrier()
     # Pruner
-    pruner = FastOBCPruner(
+    error_estimator = ErrorEstimator(
         model,
         calibration_data,
-        prunable_modules=args.prunable_modules,
+        target_modules=args.target_modules,
         pre_block_modules=args.pre_block_modules,
         block_modules=args.block_modules,
-        save_dir=args.save_dir,
-        rel_damp=args.rel_damp,
-        block_size=args.block_size,
+        compressed_weights_path=args.compressed_weights_path,
         device=device,
         cpu_offload_modules=args.cpu_offload_modules,
         cpu_offload_activations=args.cpu_offload_activations,
         verbose=args.verbose,
     )
-    # Prepare weight diff (if not defined)
-    if not args.weights_diff:
-        hidden_size = get_hidden_size(model)
-        args.weights_diff = int(0.5 * min(args.sparsity, 1 - args.sparsity) / args.num_levels * hidden_size**2)
-    # Prepare save dir
-    if dist_utils.is_main():
-        os.makedirs(args.save_dir, exist_ok=True)
-        torch.save(
-            {"sparsity": args.sparsity, "weights_diff": args.weights_diff, "num_levels": args.num_levels},
-            os.path.join(args.save_dir, "metadata.pth"),
-        )
     dist.barrier()
     t1 = time.perf_counter()
-    pruner.prune(args.sparsity, args.weights_diff, args.num_levels)
+    errors = error_estimator.estimate(args.group_by_numel)
     t2 = time.perf_counter()
-    dist_utils.print_on_main(f"Pruning took {(t2 - t1)} s.")
+    dist_utils.print_on_main(f"Error estimate took {(t2 - t1)} s.")
+    if dist_utils.is_main():
+        os.makedirs(os.path.join(args.compressed_weights_path), exist_ok=True)
+        torch.save(errors, os.path.join(args.compressed_weights_path, "errors.pth"))
 
 
 if __name__ == "__main__":

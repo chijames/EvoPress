@@ -202,7 +202,9 @@ def main():
         args.tokenizer_name or args.model_name_or_path, use_fast=args.use_fast_tokenizer
     )
     # Load calibration data
-    args.calibration_sequence_length = args.calibration_sequence_length or model.config.max_position_embeddings
+    args.calibration_sequence_length = args.calibration_sequence_length or min(
+        model.config.max_position_embeddings, 8192
+    )
     calibration_data = get_data(
         args.calibration_data,
         args.calibration_tokens,
@@ -211,7 +213,7 @@ def main():
         train=True,
     )
     # Load eval datasets
-    args.eval_sequence_length = args.eval_sequence_length or model.config.max_position_embeddings
+    args.eval_sequence_length = args.eval_sequence_length or min(model.config.max_position_embeddings, 8192)
     eval_datasets = []
     for eval_dataset_name in args.eval_datasets:
         eval_datasets.append(

@@ -60,12 +60,9 @@ def parse_args():
         required=True,
         help="The name or dataset or path used for calibration.",
     )
-    parser.add_argument("--calibration_tokens", required=True, type=int, help="Number of tokens for calibration.")
+    parser.add_argument("--calibration_tokens", default=int(2**23), type=int, help="Number of tokens for calibration.")
     parser.add_argument(
         "--calibration_sequence_length", default=None, type=int, help="Length of calibration sequences."
-    )
-    parser.add_argument(
-        "--calibration_streaming", action="store_true", help="Whether to load calibration data in streaming mode."
     )
     # Quantization params
     parser.add_argument(

@@ -1,6 +1,6 @@
 # EvoPress
 
-Code for ICLR 2025 submission `EvoPress: Towards Optimal Dynamic Model Compression via Evolutionary Search`.
+Code for paper [EvoPress: Towards Optimal Dynamic Model Compression via Evolutionary Search](https://youtu.be/dQw4w9WgXcQ?si=8WSBQ6vgrj4TRKAf).
  
 ## Usage
 
@@ -14,6 +14,8 @@ Code for ICLR 2025 submission `EvoPress: Towards Optimal Dynamic Model Compressi
     ```├── prune.py``` — SparseGPT unstructured pruning (preparation of database for EvoPress) \
     ```├── owl_prune.py``` — SparseGPT unstructured pruning (preparation of database for OWL) \
     ```├── quant.py``` — GPTQ quantization (preparation of database for EvoPress) \
+    ```├── compute_layer_errors.py``` — compute NMSE for Dynamic Programming (DP) solver \
+    ```├── dp_search.py``` — script to run DP solver on top of configuration produced by  `compute_layer_errors.py` \
     ```├── lmeval.py``` — LM Eval Harness evalution script \
     ```├── eval_ppl.py``` — perplexity evalution script
 
@@ -23,9 +25,11 @@ Code for ICLR 2025 submission `EvoPress: Towards Optimal Dynamic Model Compressi
 We provide 3 options for calibration data: `wikitext2`, `c4`, `fineweb_edu`.
 We recommend using the latter one for the best results. In our experiments we used **8M** tokens
 for calibration. To prepare a specific amount of calibration data specify
-`--calibration_samples`, `--calibration_sequence_length` for their product to be equal to desired number of tokens, i.e `--calibration_samples=1024`, `--calibration_sequence_length=8192` for 8M tokens.
+`--calibration_tokens`. By default we trim the calibration sequence length to the maximal context length.
+However, for some models, context length may be too long to fit into memory. We 
+set `--calibration_sequence_length` to `8k` for models with context length `>=8k`.
 
-We used `--calibration_samples=1024` and `--calibration_sequence_length=8192` for Llama-3-8B, Phi-3-medium-128k-instruct, and  `--calibration_samples=2048` and `--calibration_sequence_length=4096` for Llama-2-7b.
+In experiments we used `--calibration_tokens=2^23`and `--calibration_sequence_length=8192` for Llama-3-8B, Phi-3-medium-128k-instruct, and `--calibration_sequence_length=4096` for Llama-2-7b.
 
 ### Multi-GPU
 ---
