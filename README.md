@@ -7,17 +7,19 @@ Code for paper [EvoPress: Towards Optimal Dynamic Model Compression via Evolutio
 ### Repository structure
 ---
 
-- ```src/``` — root directory with repository source code \
-    ```├── evo_drop.py``` — evolutionary depth pruning \
-    ```├── greedy_drop.py``` — greedy depth pruning \
-    ```├── brute_drop.py``` — brute depth pruning \
-    ```├── prune.py``` — SparseGPT unstructured pruning (preparation of database for EvoPress) \
-    ```├── owl_prune.py``` — SparseGPT unstructured pruning (preparation of database for OWL) \
-    ```├── quant.py``` — GPTQ quantization (preparation of database for EvoPress) \
-    ```├── compute_layer_errors.py``` — compute NMSE for Dynamic Programming (DP) solver \
-    ```├── dp_search.py``` — script to run DP solver on top of configuration produced by  `compute_layer_errors.py` \
-    ```├── lmeval.py``` — LM Eval Harness evalution script \
-    ```├── eval_ppl.py``` — perplexity evalution script
+- ```src/``` —  directory for helper methods and utility functions 
+- ```evo_drop_search.py``` — evolutionary depth pruning 
+- ```drop_scoring.py``` — scoring based baseline methods for depth pruning 
+- ```brute_force_drop.py``` — brute force depth pruning
+- ```evo_prune_search.py``` — evolutionary unstructured sparsity allocation
+- ```prune.py``` — SparseGPT unstructured pruning (preparation of database for EvoPress) 
+- ```owl_prune.py``` — SparseGPT unstructured pruning (preparation of database for OWL)
+- ```evo_quant_search.py``` — evolutionary quantization bitwidth allocation
+- ```quant.py``` — GPTQ quantization (preparation of database for EvoPress) 
+- ```compute_layer_errors.py``` — compute NMSE for Dynamic Programming (DP) solver 
+- ```dp_search.py``` — script to run DP solver on top of configuration produced by  `compute_layer_errors.py` 
+- ```lmeval.py``` — LM Eval Harness evalution script 
+- ```eval_ppl.py``` — perplexity evalution script
 
 ### Calibration data
 ---
@@ -29,7 +31,7 @@ for calibration. To prepare a specific amount of calibration data specify
 However, for some models, context length may be too long to fit into memory. We 
 set `--calibration_sequence_length` to `8k` for models with context length `>=8k`.
 
-In experiments we used `--calibration_tokens=2^23`and `--calibration_sequence_length=8192` for Llama-3-8B, Phi-3-medium-128k-instruct, and `--calibration_sequence_length=4096` for Llama-2-7b.
+In experiments we used `--calibration_tokens=2^23`and `--calibration_sequence_length=8192` for Llama-3-8B, Llama-3.1-8B, Phi-3-medium-128k-instruct, and `--calibration_sequence_length=4096` for Llama-2-7b.
 
 ### Multi-GPU
 ---
@@ -45,9 +47,9 @@ torchrun --nnodes=1 --nproc-per-node=<NUM_GPU> <name_of_the_script.py> <args...>
 ---
 
 We provide 3 scripts for Depth pruning:
-* `evo_drop.py` — evolutionary depth pruning
-* `greedy_drop.py` — greedy depth pruning
-* `brute_drop.py` — evolutionary depth pruning
+* `evo_drop_search.py` — depth pruning via EvoPress
+* `drop_scoring.py` — depth pruning via scoring methods
+* `brute_force_drop.py` — depth pruning via brute force
 
 ### Unstructured Sparsity
 ---
@@ -59,7 +61,7 @@ We provide 2 scripts for Depth pruning:
 ### Quantization
 ---
 
-We provide `quant.py` producing GPTQ database for EvoPress.
+We provide `quant.py` for producing the GPTQ database for EvoPress.
 
 ### Evaluation
 ---
@@ -81,4 +83,4 @@ lm-eval                   0.4.0                    pypi_0    pypi
 ## Notes
 
 Scripts `prune.py`, `owl_prune.py`, `quant.py` produce several versions of compressed representation
-for each weight `(100-200 Gb)`. Make sure that you have sufficient amount of free space on drive before running.
+for each weight `(100-200 Gb)`. Make sure that you have sufficient amount of free space on drive before running. Additionally, when using KL-Divergence as the fitness function for the search, ensure you have enough RAM to store the logits, particularly for the models with 128K vocabulary size. Alternatively, we implemented TopK-KL-Divergence in `evo_quant_search.py`, which significantly reduces memory requirements. Preliminary experiments have shown this method to be comparably effective to KL-Divergence for $K \geq 512$.
