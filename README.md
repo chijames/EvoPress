@@ -1,6 +1,6 @@
 # EvoPress
 
-Code for paper [EvoPress: Towards Optimal Dynamic Model Compression via Evolutionary Search](https://youtu.be/dQw4w9WgXcQ?si=8WSBQ6vgrj4TRKAf).
+Code for paper [EvoPress: Towards Optimal Dynamic Model Compression via Evolutionary Search](https://arxiv.org/abs/2410.14649).
  
 ## Usage
 
