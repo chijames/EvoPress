@@ -46,7 +46,7 @@ torchrun --nnodes=1 --nproc-per-node=<NUM_GPU> <name_of_the_script.py> <args...>
 ### Depth pruning
 ---
 
-We provide 3 scripts for Depth pruning:
+We provide 3 scripts for depth pruning:
 * `evo_drop_search.py` — depth pruning via EvoPress
 * `drop_scoring.py` — depth pruning via scoring methods
 * `brute_force_drop.py` — depth pruning via brute force
@@ -54,7 +54,7 @@ We provide 3 scripts for Depth pruning:
 ### Unstructured Sparsity
 ---
 
-We provide 2 scripts for Depth pruning:
+We provide 2 scripts for unstructured pruning:
 * `prune.py` —  SparseGPT unstructured pruning (preparation of database for EvoPress)
 * `owl_prune.py` — SparseGPT unstructured pruning (preparation of database for OWL)
 
