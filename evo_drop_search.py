@@ -317,7 +317,7 @@ def main():
             get_data(
                 eval_dataset_name,
                 args.eval_tokens,  # ignored for WikiText2 and C4
-                args.eval_sequence_length,
+                args.sequence_length,
                 tokenizer,
                 train=False,
             )
