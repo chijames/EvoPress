@@ -10,10 +10,6 @@ import torch.nn as nn
 from torch.nn.modules.conv import _ConvNd
 from transformers import AutoModelForCausalLM
 from transformers.models.llama.modeling_llama import LlamaDecoderLayer
-from transformers.models.opt.modeling_opt import OPTDecoderLayer
-from transformers.models.gemma2.modeling_gemma2 import Gemma2DecoderLayer
-from transformers.models.phi3.modeling_phi3 import Phi3DecoderLayer
-from transformers.models.mistral.modeling_mistral import MistralDecoderLayer
 
 from src.common_utils import to
 
